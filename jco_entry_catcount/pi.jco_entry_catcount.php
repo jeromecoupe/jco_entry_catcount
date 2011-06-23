@@ -1,6 +1,12 @@
-<?php
+<?php if ( ! defined('BASEPATH')) exit('No direct script access allowed');
 
-if ( ! defined('BASEPATH')) exit('No direct script access allowed');
+/**
+ * JCO Entry Category Count
+ * 
+ * @version 1.0
+ * @author Jerome Coupe: port of an EE1 add-on by Erik Reagan
+ * @license http://creativecommons.org/licenses/by-sa/3.0/ Attribution-Share Alike 3.0 Unported 
+ */
 
 $plugin_info = array(
   'pi_name' => 'JCO Entry Category Count',
@@ -23,7 +29,7 @@ class Jco_entry_catcount {
 	* @access	public
 	* @var string
 	*/
-	var $return_data = '';
+	public $return_data = '';
 	
 	/* --------------------------------------------------------------
 	* CONSTRUCTOR
@@ -35,7 +41,7 @@ class Jco_entry_catcount {
 	* @access	public
 	* @return	void
 	*/
-	function __construct()
+	public function __construct()
 	{
 		$this->EE =& get_instance();
 		$this->return_data = $this->Count_entry_categories();
@@ -72,26 +78,27 @@ class Jco_entry_catcount {
 		//check entry id
 		if ($entry_id == "")
 		{
-			return "ERROR: entry_id parameter MUST BE supplied";
+			$this->EE->TMPL->log_item(str_repeat('&nbsp;', 5) . '- ERROR: entry_id parameter MUST BE supplied');
+			return FALSE;
 		}
 		else
 		{
 			//check that entry id exists in the DB
-			$this->EE->db->select('exp_channel_titles.entry_id');
-			$this->EE->db->from('exp_channel_titles');
-			$this->EE->db->where('exp_channel_titles.entry_id', $entry_id);
-			$entry_exists = $this->EE->db->count_all_results();
-			if ($entry_exists == 0)
+			$this->EE->db->select('exp_channel_titles.entry_id')
+			             ->from('exp_channel_titles')
+			             ->where('exp_channel_titles.entry_id', $entry_id);
+			if ($this->EE->db->count_all_results() == 0)
 			{
-				return "Supplied entry id was not found in the database";
+				$this->EE->TMPL->log_item(str_repeat('&nbsp;', 5) . '- ERROR: Supplied entry id was not found in the database');
+				return FALSE;
 			}
 		}
 		
 		//Query
 		//main part
-		$this->EE->db->select('exp_category_posts.entry_id');
-		$this->EE->db->from('exp_category_posts');
-		$this->EE->db->where('exp_category_posts.entry_id', $entry_id);
+		$this->EE->db->select('exp_category_posts.entry_id')
+		             ->from('exp_category_posts')
+		             ->where('exp_category_posts.entry_id', $entry_id);
 		
 		//count results found and return number
 		return $this->EE->db->count_all_results();

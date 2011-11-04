@@ -101,7 +101,10 @@ class Jco_entry_catcount {
 		             ->where('exp_category_posts.entry_id', $entry_id);
 		
 		//count results found and return number
-		return $this->EE->db->count_all_results();
+		$nbrresults = $this->EE->db->count_all_results();
+		$this->EE->TMPL->log_item(str_repeat('&nbsp;', 5) . '- JCO ENTRY CATCOUNT RESULT: '.$nbrresults);
+
+		return (int) $nbrresults;
 	}
 	
 	/* --------------------------------------------------------------
@@ -132,6 +135,8 @@ class Jco_entry_catcount {
 			
 			Examples:
 			{exp:jco_entry_catcount entry_id="3"}
+			
+			{exp:jco_entry_catcount entry_id="{entry_id}"}
 
 			{if {exp:jco_entry_catcount entry_id='{entry_id}'} == 0}
 				No categories assigned to this entry

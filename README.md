@@ -9,12 +9,15 @@ Returns the number of categories for a given entry
 ##Simple
 
 	{exp:jco_entry_catcount entry_id="3"}{nbrcategories}{/exp:jco_entry_catcount}
+	
 	{exp:jco_entry_catcount entry_id="{entry_id}"}{nbrcategories}{/exp:jco_entry_catcount}
 
 ##Limited to category group(s):
 
 	{exp:jco_entry_catcount entry_id="3" category_group_id="1"}{nbrcategories}{/exp:jco_entry_catcount}
+	
 	{exp:jco_entry_catcount entry_id="3" category_group_id="1|2"}{nbrcategories}{/exp:jco_entry_catcount}
+	
 	{exp:jco_entry_catcount entry_id="3" category_group_id="not 2"}{nbrcategories}{/exp:jco_entry_catcount}
 
 ##Using Conditionals

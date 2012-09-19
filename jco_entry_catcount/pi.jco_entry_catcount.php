@@ -2,15 +2,15 @@
 
 /**
  * JCO Entry Category Count
- * 
- * @version 1.1
+ *
+ * @version 1.2
  * @author Jerome Coupe: port of an EE1 add-on by Erik Reagan
- * @license http://creativecommons.org/licenses/by-sa/3.0/Attribution-Share Alike 3.0 Unported 
+ * @license http://creativecommons.org/licenses/by-sa/3.0/ Attribution-Share Alike 3.0 Unported
  */
 
 $plugin_info = array(
   'pi_name' => 'JCO Entry Category Count',
-  'pi_version' =>'1.1',
+  'pi_version' =>'1.2',
   'pi_author' =>'Jerome Coupe: port of an EE1 add-on by Erik Reagan',
   'pi_author_url' => 'http://twitter.com/jeromecoupe/',
   'pi_description' => 'Returns the number of categories for a given entry.',
@@ -19,7 +19,7 @@ $plugin_info = array(
 
 
 class Jco_entry_catcount {
-	
+
 	/* --------------------------------------------------------------
 	* RETURNED DATA
 	* ------------------------------------------------------------ */
@@ -30,7 +30,7 @@ class Jco_entry_catcount {
 	* @var string
 	*/
 	public $return_data = "";
-	
+
 	/* --------------------------------------------------------------
 	* CONSTRUCTOR
 	* ------------------------------------------------------------ */
@@ -46,8 +46,8 @@ class Jco_entry_catcount {
 		$this->EE =& get_instance();
 		$this->return_data = $this->Count_entry_categories();
 	}
-	
-	
+
+
 	/**
 	* Compatibility for prior to EE 2.1.3
 	*
@@ -59,11 +59,11 @@ class Jco_entry_catcount {
 	{
 		$this->__construct();
 	}
-	
+
 	/* --------------------------------------------------------------
 	* USED FUNCTIONS
 	* ------------------------------------------------------------ */
-	
+
 	/**
 	* Return number of items in category.
 	*
@@ -72,14 +72,15 @@ class Jco_entry_catcount {
 	*/
 	public function Count_entry_categories()
 	{
-		
-		// get value for parameters and set default
-		$entry_id = $this->EE->TMPL->fetch_param('entry_id',FALSE);
-		$category_group_id = $this->EE->TMPL->fetch_param('category_group_id',FALSE);
-		$site = $this->EE->config->item('site_id');
 
-		//set category group query to FALSE by default
-		$catgroup_query = FALSE;
+		// get value for parameters and set default
+		$entry_id 			= $this->EE->TMPL->fetch_param('entry_id',FALSE);
+		$category_group_id 	= $this->EE->TMPL->fetch_param('category_group_id',FALSE);
+		$site 				= $this->EE->config->item('site_id');
+
+		//set category_group control variables to false by default
+		$catgroup_isnumeric = FALSE;
+		$catgroup_exists 	= FALSE;
 
 		// check if valid category_group_id passed
 		if ($category_group_id !== FALSE)
@@ -97,18 +98,29 @@ class Jco_entry_catcount {
 				$category_group_id = explode('|', $category_group_id);
 			}
 
-			// check if each element of the array is valid
+			// check if each element of the array is a number
 			foreach ($category_group_id as $value)
 			{
-				if (is_numeric($value) && $this->_category_group_exists($value))
+				if (is_numeric($value))
 				{
-					$catgroup_query = TRUE;
+					$catgroup_isnumeric = TRUE;
 				}
 				else
 				{
-					$this->EE->TMPL->log_item(str_repeat("&nbsp;", 5) . "- ERROR (jco_entry_catcount): invalid category_group_id supplied");
+					$this->EE->TMPL->log_item(str_repeat("&nbsp;", 5) . "- ERROR (jco_entry_catcount): invalid category_group_id supplied: category group ids must be numeric");
 					return FALSE;
 				}
+			}
+
+			//check if each element of the array matches a category in the database
+			if ($this->_category_group_exists($category_group_id, $site) === TRUE)
+			{
+				$catgroup_exists = TRUE;
+			}
+			else
+			{
+				$this->EE->TMPL->log_item(str_repeat("&nbsp;", 5) . "- ERROR (jco_entry_catcount): invalid category_group_id supplied: category group ids not found in database for the current site");
+				return FALSE;
 			}
 		}
 
@@ -120,14 +132,14 @@ class Jco_entry_catcount {
 			{
 				// Build Query checking how many categories are associated with the entry
 				// (uses category group as well if exists, defaults to current site)
-				$this->EE->db->select('category_posts.entry_id');
-				$this->EE->db->from('category_posts');
-				$this->EE->db->join('categories', 'categories.cat_id = category_posts.cat_id');
-				$this->EE->db->where('categories.site_id', $site);
-				$this->EE->db->where('category_posts.entry_id', $entry_id);
-				
+				$this->EE->db->select('category_posts.entry_id')
+							 ->from('category_posts')
+					    	 ->join('categories', 'categories.cat_id = category_posts.cat_id')
+							 ->where('categories.site_id', $site)
+							 ->where('category_posts.entry_id', $entry_id);
+
 				// add part of query to limit category group if needed
-				if ($catgroup_query === TRUE)
+				if ($catgroup_isnumeric === TRUE && $catgroup_exists == TRUE)
 				{
 					if ($catgroup_notclause === TRUE)
 					{
@@ -138,7 +150,7 @@ class Jco_entry_catcount {
 						$this->EE->db->where_in('categories.group_id', $category_group_id);
 					}
 				}
-				
+
 				// get results from query
 				$results = $this->EE->db->count_all_results();
 
@@ -162,7 +174,7 @@ class Jco_entry_catcount {
 			return FALSE;
 		}
 	}
-	
+
 	/**
 	* Check if entry_id exists in DB
 	*
@@ -176,7 +188,7 @@ class Jco_entry_catcount {
 		$this->EE->db->select('entry_id')
 					 ->from('channel_titles')
 					 ->where('entry_id', $entry_id);
-		
+
 		//if 1 result found set to TRUE, otherwise send to FALSE
 		$results = ($this->EE->db->count_all_results() == 1) ? TRUE : FALSE;
 
@@ -191,22 +203,25 @@ class Jco_entry_catcount {
 	* @access	private
 	* @return	boolean
 	*/
-	private function _category_group_exists($catgroup_id)
+	private function _category_group_exists($category_group_array, $site)
 	{
 
 		//query
 		$this->EE->db->select('group_id')
 					 ->from('category_groups')
-					 ->where('group_id', $catgroup_id);
-		
-		//if 1 result found set to TRUE, otherwise send to FALSE
-		$results = ($this->EE->db->count_all_results() == 1) ? TRUE : FALSE;
+					 ->where('site_id', $site)
+					 ->where_in('group_id', $category_group_array);
 
-		//return TRUE or FALSE
+		//set result to TRUE if nbr of results found match the length of passed arrays
+		$results_from_db 		= $this->EE->db->count_all_results();
+		$catgroup_array_items 	= count($category_group_array);
+
+		$results = ($results_from_db == $catgroup_array_items) ? TRUE : FALSE;
+
 		return $results;
 
 	}
-		
+
 	/* --------------------------------------------------------------
 	* PLUGIN USAGE
 	* ------------------------------------------------------------ */
@@ -221,21 +236,21 @@ class Jco_entry_catcount {
 	 */
 	public function usage()
 	{
-		ob_start(); 
+		ob_start();
 		?>
 
 			Description:
 			------------------------------------------------------
 
 			Returns the number of categories for a given entry
-			
+
 			* Entry ID has to be supplied
 			* returns 0 if no categories are found
-	
-	
+
+
 			Examples:
 			------------------------------------------------------
-			
+
 			Simple:
 			{exp:jco_entry_catcount entry_id="3"}{nbrcategories}{/exp:jco_entry_catcount}
 			{exp:jco_entry_catcount entry_id="{entry_id}"}{nbrcategories}{/exp:jco_entry_catcount}
@@ -257,11 +272,11 @@ class Jco_entry_catcount {
 					Multiple categories assigned to this entry
 				{/if}
 			{/exp:jco_entry_catcount}
-	
-			
+
+
 			Parameters:
 			------------------------------------------------------
-	
+
 			entry_id="1" : Mandatory
 			The id for the entry that you want to output the number of categories for
 
@@ -269,11 +284,11 @@ class Jco_entry_catcount {
 			The id of the category group you want to limit the query to
 			You can use piped list: category_group_id="1|2"
 			You can use not clause: category_group_id="not 2"
-		
+
 		<?php
 		$buffer = ob_get_contents();
 
-		ob_end_clean(); 
+		ob_end_clean();
 
 		return $buffer;
 	}
@@ -282,5 +297,5 @@ class Jco_entry_catcount {
 }
 
 
-/* End of file pi.jco_entry_catcount.php */ 
+/* End of file pi.jco_entry_catcount.php */
 /* Location: ./system/expressionengine/third_party/plugin_name/pi.jco_entry_catcount.php */
